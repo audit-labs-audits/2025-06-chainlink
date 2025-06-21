@@ -1,0 +1,17 @@
+{
+  "packageName": "2025-06-chainlink",
+  "packageVersion": 1,
+  "hash": "0134b14f53363a9af3887a588db80a05ef408742",
+  "numberOfTours": 2,
+  "titleOfTours": [
+    "1.1: Chainlink Rewards: An Architectural Overview",
+    "2.1: Want to learn more?"
+  ],
+  "totalNumberOfSteps": 14,
+  "filesCovered": [
+    "README.md",
+    "src/BUILDFactory.sol",
+    "src/BUILDClaim.sol"
+  ],
+  "numberOfFilesCovered": 3
+}

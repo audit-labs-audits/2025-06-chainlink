@@ -1,0 +1,163 @@
+{
+  "title": "1.1: Chainlink Rewards: An Architectural Overview",
+  "id": "oD7kNmsgle1LD8a6jOvEu4XfzJofEQFT4jdYKSp25lI=",
+  "originalId": 4011,
+  "position": 1,
+  "steps": [
+    {
+      "type": "textOnly",
+      "description": "This tour provides a high-level overview of the **Chainlink Rewards** **codebase**, introducing the core architectural concepts, the main contracts, and the key mechanisms that govern the system.",
+      "title": "",
+      "id": "47025"
+    },
+    {
+      "type": "highlight",
+      "description": "The overview in `README.md` describes the purpose: **Chainlink Rewards (CLR)** is a community engagement and rewards program that allows projects in the Chainlink Build program to deploy an on-chain claim mechanism of their tokens for ecosystem participants.",
+      "file": "README.md",
+      "highlight": [
+        {
+          "start": 51,
+          "end": 54
+        }
+      ],
+      "title": "",
+      "id": "47026"
+    },
+    {
+      "type": "highlight",
+      "description": "The `BUILDFactory` contract declaration. It implements `IBUILDFactory`, reports its version via `ITypeAndVersion`, and inherits `ManagedAccessControl` for role management, serving as the central administrative hub for all projects.",
+      "file": "src/BUILDFactory.sol",
+      "highlight": [
+        {
+          "start": 16,
+          "end": 22
+        }
+      ],
+      "title": "",
+      "id": "47027"
+    },
+    {
+      "type": "highlight",
+      "description": "The `BUILDClaim` contract declaration. It implements `IBUILDClaim`, uses `ReentrancyGuard` to protect against reentrancy attacks, and manages per-season user and global reward state for a single project.",
+      "file": "src/BUILDClaim.sol",
+      "highlight": [
+        {
+          "start": 20,
+          "end": 24
+        }
+      ],
+      "title": "",
+      "id": "47028"
+    },
+    {
+      "type": "highlight",
+      "description": "Key state in `BUILDFactory`: `s_projects` maps each project token to its admin and deployed `BUILDClaim` contract. `s_projectSeasonConfigs` holds the reward season configuration (token amounts, vesting parameters, **Merkle root**, early-vest ratios) per project-season pair.",
+      "file": "src/BUILDFactory.sol",
+      "highlight": [
+        {
+          "start": 41,
+          "end": 48
+        }
+      ],
+      "title": "",
+      "id": "47029"
+    },
+    {
+      "type": "highlight",
+      "description": "The `claim` function is the user-facing entry point. It accepts a user address and an array of `ClaimParams` (`seasonId`, `proof`, `maxTokenAmount`, `early-claim` flag, `salt`) and delegates to the internal `_claim` logic.",
+      "file": "src/BUILDClaim.sol",
+      "highlight": [
+        {
+          "start": 121,
+          "end": 126
+        }
+      ],
+      "title": "",
+      "id": "47030"
+    },
+    {
+      "type": "highlight",
+      "description": "The `_verifyMerkleProof` function is the gatekeeper for claims. Notice how it takes the user's specific allocation data as arguments. On line 181, it reconstructs a cryptographic `leaf` by hashing this data. Then, on line 182, it uses the provided `proof` to verify that this `leaf` belongs to the `root` of the Merkle tree. This process ensures only eligible users can redeem their allocated tokens.",
+      "file": "src/BUILDClaim.sol",
+      "highlight": [
+        {
+          "start": 172,
+          "end": 183
+        }
+      ],
+      "title": "",
+      "id": "47031"
+    },
+    {
+      "type": "highlight",
+      "description": "**Core accounting invariant** in `BUILDFactory`: `_calcMaxAvailableForWithdrawalOrNewSeason` calculates the maximum tokens available for new allocations or withdrawals by summing deposits and refunds, then subtracting allocations and withdrawals, preventing overspending.",
+      "file": "src/BUILDFactory.sol",
+      "highlight": [
+        {
+          "start": 471,
+          "end": 476
+        }
+      ],
+      "title": "",
+      "id": "47032"
+    },
+    {
+      "type": "highlight",
+      "description": "Within `_getClaimableState`, the base and bonus amounts are computed: `base` is unlocked instantly after the delay (by `baseTokenClaimBps`), and `bonus` vests linearly over the unlock duration.",
+      "file": "src/BUILDClaim.sol",
+      "highlight": [
+        {
+          "start": 204,
+          "end": 206
+        }
+      ],
+      "title": "",
+      "id": "47033"
+    },
+    {
+      "type": "highlight",
+      "description": "The `_calcEarlyVestableBonus` function implements the early vest option: it calculates how much of the unvested bonus a user can claim early based on a linear ratio (`min` to `max`) over time, forfeiting the remainder to the loyalty pool.",
+      "file": "src/BUILDClaim.sol",
+      "highlight": [
+        {
+          "start": 243,
+          "end": 257
+        }
+      ],
+      "title": "",
+      "id": "47034"
+    },
+    {
+      "type": "highlight",
+      "description": "Withdrawals are a two-step process: `scheduleWithdraw` (only `DEFAULT_ADMIN_ROLE`) schedules the recipient and amount, enforcing that the project has sufficient available balance.",
+      "file": "src/BUILDFactory.sol",
+      "highlight": [
+        {
+          "start": 483,
+          "end": 494
+        }
+      ],
+      "title": "",
+      "id": "47035"
+    },
+    {
+      "type": "highlight",
+      "description": "The `withdraw` function in `BUILDClaim` (`onlyProjectAdmin`) calls `executeWithdraw` on the factory, which finalizes the withdrawal and transfers funds to the scheduled recipient, separating duties between admin roles.",
+      "file": "src/BUILDClaim.sol",
+      "highlight": [
+        {
+          "start": 109,
+          "end": 114
+        }
+      ],
+      "title": "",
+      "id": "47036"
+    },
+    {
+      "type": "textOnly",
+      "description": "This concludes the high-level overview. We’ve covered the central factory managing project treasuries, isolated `BUILDClaim` contracts handling user interactions, `Merkle`-based claim verification, the accounting invariants, the vesting and loyalty mechanics, and the **two-step withdrawal workflow**. Subsequent tours will dive into the detailed data structures, core functions, and the mechanisms introduced here.",
+      "title": "",
+      "id": "47037"
+    }
+  ]
+}

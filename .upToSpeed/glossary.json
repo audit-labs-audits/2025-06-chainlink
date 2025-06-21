@@ -1,0 +1,333 @@
+[
+  {
+    "terms": [
+      "Liquidity Provider"
+    ],
+    "definition": "# Liquidity Provider\n\nIn the context of the Chainlink Rewards program, a liquidity provider is a project administrator who deposits ERC20 tokens into a `BUILDClaim` contract to fund rewards for program participants. Unlike traditional DeFi liquidity providers who deposit token pairs into trading pools, these administrators deposit single tokens that are allocated according to predefined vesting schedules and merkle-root validated claims. The deposited tokens are not used for trading but instead function as a reward pool that users can claim from based on their allocations. Project administrators have restricted withdrawal capabilities that must be scheduled and approved through the `BUILDFactory` contract, ensuring tokens remain available for user claims during the vesting period."
+  },
+  {
+    "terms": [
+      "Volatility"
+    ],
+    "definition": "# Volatility\n\nThe degree of price fluctuation for assets in a market over time. High volatility increases the risk of losses for investors and traders, as rapid price changes can lead to significant differences between expected and actual asset values. Volatility also impacts the effectiveness of various price averaging mechanisms, with longer averaging periods generally providing more stable price indicators in volatile markets.\n\nIn the Chainlink Rewards codebase, volatility is a critical consideration for the vesting and early vesting mechanisms. The protocol specifically implements an early vest ratio that changes linearly over time, allowing users to claim a portion of unvested tokens with a formula that accounts for time elapsed in the vesting period:\n\n```solidity\nEVR(t) = minRatio + (maxRatio - minRatio) × (t/T)\n```\n\nThis mechanism helps balance risk and reward in volatile market conditions, protecting both users and the protocol from extreme price swings during the vesting period."
+  },
+  {
+    "terms": [
+      "Arbitrage"
+    ],
+    "definition": "# Arbitrage\n\nIn the Chainlink Rewards protocol, arbitrage refers to the potential exploitation of value discrepancies between how tokens are valued within the system versus external markets. Specifically, it's the risk that users could time their claims, vesting, or other interactions with the protocol to extract risk-free profit by leveraging inconsistencies in token pricing or reward allocation. \n\nThis can manifest in several ways in the codebase:\n\n1. **Early Vesting Arbitrage**: The `BUILDClaim` contract implements a time-dependent early vesting mechanism where users can claim a portion of unvested tokens with a ratio that increases linearly over time. If the protocol's valuation of these tokens doesn't match external market prices, users might strategically time their early vests.\n\n2. **Cross-Season Value Extraction**: As the protocol supports multiple seasons of rewards through the `BUILDFactory`, arbitrage could occur if there are pricing inconsistencies between seasons or during the transition between them.\n\n3. **Delegation Exploitation**: The protocol supports delegation for early vesting, which could potentially create arbitrage opportunities if the timing of delegation and vesting can be manipulated for profit.\n\nUnderstanding and mitigating arbitrage risks is essential to ensure that rewards are distributed fairly and that the protocol doesn't inadvertently leak value to opportunistic participants who exploit timing or pricing inefficiencies rather than contributing meaningfully to the ecosystem."
+  },
+  {
+    "terms": [
+      "Slippage"
+    ],
+    "definition": "# Slippage\n\nIn decentralized finance systems like the Chainlink Rewards protocol, slippage refers to the difference between an expected outcome and the actual result when a transaction executes. In this codebase, while not explicitly labeled as \"slippage,\" the concept appears in calculations that must account for changes in token balances and allocations between when a transaction is initiated and when it executes.\n\nThe protocol protects against negative impacts of slippage through multiple validation mechanisms:\n\n1. Invariant checks that ensure claimed amounts never exceed available balances\n2. Calculations like `_calcMaxAvailableForWithdrawalOrNewSeason()` that validate current available amounts\n3. Safeguards in functions like `_setSeasonTokenAmount()` that verify sufficient funds exist\n\nFor example, when calculating refundable amounts or maximum available withdrawals, the system accounts for all previous deposits, withdrawals, allocations, and refunds to ensure consistency:\n\n```solidity\nfunction _calcMaxAvailableForWithdrawalOrNewSeason(\n    TokenAmounts memory tokenAmounts\n) private pure returns (uint256) {\n    return tokenAmounts.totalDeposited + tokenAmounts.totalRefunded \n           - tokenAmounts.totalWithdrawn - tokenAmounts.totalAllocatedToAllSeasons;\n}\n```\n\nThese mechanisms ensure that even as the state of the system changes, calculations remain accurate and users receive their expected outcomes within acceptable tolerance levels."
+  },
+  {
+    "terms": [
+      "Spread"
+    ],
+    "definition": "# Spread\n\nIn the context of decentralized finance, \"Spread\" refers to the strategic distribution of large token orders over time, rather than executing them all at once. This mechanism reduces market impact by breaking up substantial trades into smaller portions that execute gradually according to predetermined parameters. \n\nIn systems like Time-Weighted Average Market Makers (TWAMM), spread execution helps protect traders from excessive slippage and minimizes price volatility that would otherwise occur from large, sudden trades. By spreading execution across time intervals, the market can more efficiently absorb the trading volume while maintaining price stability.\n\nWhile this concept is common in DEX environments, the Chainlink Rewards codebase reviewed does not implement spread functionality, as it focuses on token vesting, claiming, and administrative functions rather than trade execution mechanisms."
+  },
+  {
+    "terms": [
+      "Order Book"
+    ],
+    "definition": "# Order Book\n\nIn decentralized exchanges (DEXs), an Order Book is a transparent, on-chain ledger system that records and matches buy and sell orders for cryptocurrencies. Unlike traditional Automated Market Makers (AMMs), an Order Book combines AMM liquidity with Central Limit Order Book (CLOB) functionality, creating a hybrid trading mechanism with enhanced capabilities.\n\nThe key features of an Order Book in this context include:\n\n1. **On-chain limit orders** - Users can place orders that execute only at specific price points\n2. **Market-responsive dynamic fees** - Trading fees that adjust based on market conditions\n3. **MEV protection** - Mechanisms to capture and distribute value that would otherwise be extracted by third parties\n4. **Customizable trading logic** - Extensibility through hooks and external contracts\n\nThis architecture maintains the trustless, decentralized nature of blockchain while offering the capital efficiency and trading flexibility traditionally associated with centralized exchanges. The implementation typically uses smart contracts to manage the entire order lifecycle—from placement to matching to settlement—all verifiably on-chain."
+  },
+  {
+    "terms": [
+      "Market Depth"
+    ],
+    "definition": "# Market Depth\n\nMarket depth refers to the quantity of liquidity available at various price levels within a market. In decentralized exchanges and liquidity pools, it measures how much trading volume can be absorbed before significantly impacting price. Higher market depth indicates that larger trades can be executed with minimal slippage, providing stability and efficiency.\n\nIn the context of this codebase, while market depth isn't explicitly tracked as a metric (as this isn't a trading platform), there are parallels in how the system manages token availability. The `BUILDFactory` tracks various token amounts including `totalDeposited`, `totalAllocatedToAllSeasons`, `totalWithdrawn`, and `totalRefunded`. The available tokens for a project (calculated in `_calcMaxAvailableForWithdrawalOrNewSeason`) function somewhat similarly to market depth in that they represent capacity for new operations:\n\n```solidity\nfunction _calcMaxAvailableForWithdrawalOrNewSeason(\n    TokenAmounts memory tokenAmounts\n) private pure returns (uint256) {\n    return tokenAmounts.totalDeposited + tokenAmounts.totalRefunded - tokenAmounts.totalWithdrawn\n      - tokenAmounts.totalAllocatedToAllSeasons;\n}\n```\n\nThis value determines a project's ability to allocate new tokens or withdraw excess tokens, ensuring proper accounting within the rewards distribution system."
+  },
+  {
+    "terms": [
+      "Limit Order"
+    ],
+    "definition": "# Limit Order\n\nA Limit Order in decentralized exchanges (DEXs) is a trading mechanism that allows users to specify a price at which they want to exchange tokens, rather than accepting the current market price. In concentrated liquidity DEXs, limit orders are implemented as Range Orders - a technique where users deposit a single asset into a specific price range.\n\nUnlike traditional limit orders that sit in an orderbook, these are implemented by:\n1. Creating a single-sided liquidity position within a narrow price range\n2. When the market price crosses into this range, the deposited token automatically converts to the desired token\n3. The position effectively \"executes\" as traders swap through the specified price range\n4. While waiting for execution, the position may earn trading fees\n\nThis approach simulates the behavior of a limit order while working within the constraints of automated market maker (AMM) designs, allowing users to get favorable exchange rates without relying on centralized orderbooks."
+  },
+  {
+    "terms": [
+      "Stop-Loss Order"
+    ],
+    "definition": "# Stop-Loss Order\n\nIn the Chainlink Rewards codebase, \"Stop-Loss Order\" is not an implemented feature. This term is typically used in trading contexts to describe an automated instruction that sells an asset when its price falls to a specified threshold, limiting potential losses. However, the BUILDClaim and BUILDFactory contracts focus exclusively on token vesting, distribution, and claim management for Chainlink Rewards participants. The codebase implements various mechanisms for token allocation, vesting schedules, administrative controls, and withdrawal processes, but contains no functionality for price monitoring, automated position liquidation, or any order-based trading system that would constitute a stop-loss feature."
+  },
+  {
+    "terms": [
+      "Maker Fee"
+    ],
+    "definition": "# Maker Fee\n\nIn decentralized finance (DeFi) systems like this Chainlink Rewards protocol, the traditional concept of \"maker fees\" is replaced with a different economic model. Instead of charging fees to market makers who provide liquidity in order books (as in centralized exchanges), DeFi protocols typically implement fee distribution systems where liquidity providers earn a portion of transaction fees generated by the protocol.\n\nIn this codebase, rewards are distributed through contracts like `BUILDClaim`, where participants can claim tokens based on their contributions to the ecosystem. The fee structure doesn't distinguish between \"makers\" and \"takers\" as traditional exchanges do. Instead, the protocol uses mechanisms like vesting schedules, early vesting penalties (as seen in the linear increasing band calculation), and merkle-proof-based distributions to allocate rewards to participants.\n\nThis approach aligns economic incentives across the network by rewarding participation and contribution rather than charging different fees based on order types, creating a more integrated ecosystem for protocol sustainability."
+  },
+  {
+    "terms": [
+      "Taker Fee"
+    ],
+    "definition": "# Taker Fee\n\nA custom fee mechanism in decentralized exchanges that deducts a portion from swap amounts or liquidity provisions, separate from and additional to standard protocol fees. Unlike traditional taker fees in order book exchanges (which apply to users who remove liquidity), these fees are configurable value capture tools that allow protocols to direct funds to specific entities or treasury accounts. Taker fees enable flexible tokenomics by creating customized fee flows beyond the basic swap fee model, providing protocols with additional revenue streams that can be allocated according to governance decisions or predefined distribution rules."
+  },
+  {
+    "terms": [
+      "Margin Trading"
+    ],
+    "definition": "# Margin Trading\n\nMargin trading is a financial practice where traders borrow funds to increase their trading position beyond what they could afford with their capital alone, potentially amplifying both profits and losses. This concept doesn't appear as an implemented feature in the Chainlink Rewards protocol being audited, which instead focuses on token rewards distribution, vesting schedules, and claim management. The audited contracts (`BUILDClaim.sol` and `BUILDFactory.sol`) contain no mechanisms for leveraged trading, borrowing against collateral, or margin-related liquidation logic. If you encounter this term in relation to this codebase, it would be referring to the general financial concept rather than a protocol feature."
+  },
+  {
+    "terms": [
+      "Leverage"
+    ],
+    "definition": "# Leverage\n\nIn the Chainlink Rewards system, leverage refers to the architectural approach that allows projects to extend and customize reward functionality without modifying core protocol code. The system achieves this through its modular design: the `BUILDFactory` contract serves as a deployment hub for individual `BUILDClaim` contracts, each configured with project-specific parameters. This structure enables projects to implement sophisticated reward mechanisms—such as customized vesting schedules, early vesting with proportional penalties, and multi-season claiming—by leveraging the existing infrastructure rather than building from scratch. Projects can define their own token economics (through configuration of parameters like unlock durations, ratios, and merkle roots) while inheriting the security and standardization of the core protocol. This approach creates a flexible ecosystem where different reward models can coexist, all built upon the same foundational contracts."
+  },
+  {
+    "terms": [
+      "Hedging"
+    ],
+    "definition": "# Hedging\n\nIn the context of reward protocols like Chainlink Rewards, hedging refers to the risk management strategies used to protect against operational and financial exposures in token distribution systems. It involves mechanisms that allow protocol administrators to reclaim unclaimed tokens (through `startRefund` and `getRefundableAmount`), adjust allocations when conditions change, and enforce invariants that prevent token overcommitment. \n\nUnlike traditional finance hedging (which focuses on price risk), protocol hedging primarily addresses commitment risk - ensuring projects don't permanently lose access to undistributed tokens and can recover allocated but unclaimed rewards. The factory contract's functions like `_calcMaxAvailableForWithdrawalOrNewSeason` and `_getTotalLoyaltyRefundEligible` explicitly support this by creating mathematical safeguards that balance token allocations with potential refund scenarios.\n\nThis approach to hedging is fundamental to sustainable reward systems, as it prevents protocol operators from facing \"underwater\" positions where they've committed more tokens than can be reclaimed if participants don't claim their rewards."
+  },
+  {
+    "terms": [
+      "Swap"
+    ],
+    "definition": "# Swap\n\nIn decentralized finance (DeFi), a swap is a fundamental operation where one token is exchanged for another, typically within a liquidity pool. While this term appears in general DeFi discussions, it's important to note that in the Chainlink Rewards codebase being audited, there is no \"swap\" functionality implemented. The contracts (`BUILDClaim` and `BUILDFactory`) focus instead on reward claiming, vesting, token deposits, and controlled withdrawals—all related to distributing project tokens according to predefined schedules and allocations. Users claim vested tokens rather than swapping between different token types, and all token transfers represent either reward claims or administrative operations, not token-for-token exchanges."
+  },
+  {
+    "terms": [
+      "Futures"
+    ],
+    "definition": "# Futures\n\nIn the context of the Chainlink Rewards protocol, \"Futures\" is not a natively implemented feature. The protocol focuses on reward distributions and vesting mechanics rather than financial derivatives contracts.\n\nThe system manages token rewards that vest over time according to configurable schedules, with features like early vesting (with penalties) and delegation, but does not implement traditional futures contracts where users can agree to buy/sell assets at predetermined future prices.\n\nAny mention of \"futures\" in this context would refer to tokens that will become claimable in the future due to vesting schedules, not to financial derivatives products or advanced trading mechanisms. The protocol is designed strictly for managing BUILD program reward distributions, not for facilitating futures trading or speculative positions."
+  },
+  {
+    "terms": [
+      "Options"
+    ],
+    "definition": "# Options\n\nIn the Chainlink Rewards protocol, \"Options\" refer to the configurable parameters that enable administrators and project owners to customize reward distribution mechanics. These options include:\n\n1. **Deployment Configuration** - Parameters set during contract initialization such as `maxUnlockDuration`, `maxUnlockDelay`, and administrator addresses\n  \n2. **Season Settings** - Per-season configurations including unlock start times, vesting durations, and merkle roots for claim verification\n\n3. **Early Vesting Parameters** - Mathematical controls like `minRatio` and `maxRatio` that determine how users can access unvested tokens early with specific forfeiture rates\n\n4. **Administrative Controls** - Operational options such as pausing functionality, scheduling withdrawals, and managing project participation\n\nThese options provide flexibility for protocol governance while maintaining security boundaries, allowing the Chainlink Rewards ecosystem to adapt to different project requirements without requiring contract redeployment for each adjustment."
+  },
+  {
+    "terms": [
+      "Derivatives"
+    ],
+    "definition": "# Derivatives\n\nIn the context of decentralized exchanges and decentralized finance (DeFi), derivatives refer to financial contracts whose value is derived from the performance of an underlying asset, index, or entity. These can include options, futures, or other complex financial instruments built on top of existing tokens or liquidity pools.\n\nWhile not explicitly implemented in the Chainlink Rewards contracts being audited, derivatives represent an important category of financial products in the broader DeFi ecosystem. The vesting and early claim mechanisms in the `BUILDClaim` contract contain some mathematical models that resemble derivative-like structures - particularly the early vesting formula that calculates a proportional payout based on time elapsed and allocation ratios:\n\n```\nEVR(t) = minRatio + (maxRatio - minRatio) × (t/T)\n```\n\nThis early vesting mechanism offers users a way to access a portion of their unvested tokens by forfeiting the remainder, with the amount received being proportional to time elapsed - conceptually similar to how some derivatives provide exposure to underlying assets through mathematical formulas rather than direct ownership."
+  },
+  {
+    "terms": [
+      "Stablecoin"
+    ],
+    "definition": "# Stablecoin\n\nA cryptocurrency designed to maintain a stable value by pegging to a fiat currency (typically USD) or other asset. In the Chainlink Rewards program, stablecoins like USDC serve as the primary medium for transaction value, including the $200,000 prize pool and various awards. Unlike volatile cryptocurrencies, stablecoins provide predictable value throughout claim periods, vesting schedules, and withdrawals. The protocol expects canonical EIP-20 (ERC20) token implementations without fee-on-transfer or rebase mechanisms, enabling reliable token accounting for deposits, allocations, claims and vesting operations. Stablecoins interact with the system through standard token interfaces while providing stability that's critical for reward programs with extended vesting periods."
+  },
+  {
+    "terms": [
+      "Collateral"
+    ],
+    "definition": "# Collateral\n\nIn the Chainlink Rewards protocol, collateral refers to the tokens deposited by project administrators into the BUILDClaim contracts that serve as the financial backing for all reward obligations. These deposited tokens function as a security mechanism ensuring that the protocol always maintains sufficient assets to honor user claims, withdrawals, and refunds. The system rigorously tracks total deposits, withdrawals, allocations, and refunds to prevent over-allocation of rewards, maintaining a fundamental invariant that total obligations never exceed available collateral. This collateralization approach guarantees protocol solvency and protects reward recipients, particularly during mechanisms like early vesting where users might forfeit portions of their allocation in exchange for accelerated access to a portion of their rewards."
+  },
+  {
+    "terms": [
+      "Yield Farming"
+    ],
+    "definition": "# Yield Farming\n\nIn the Chainlink Rewards context, yield farming refers to a structured rewards distribution mechanism where ecosystem participants can claim allocated project tokens through the BUILDClaim contract according to predefined vesting schedules. Unlike traditional DeFi yield farming that incentivizes liquidity provision, this system rewards community engagement with project tokens that unlock over time.\n\nKey components include:\n- Project administrators deposit tokens into BUILDClaim contracts for distribution\n- Eligible participants (validated via Merkle proofs) claim their allocated rewards\n- Tokens vest according to configurable schedules with unlock delays and durations\n- Early vesting options allow claiming a portion of unvested tokens with a calculated penalty\n- Unclaimed tokens may be refunded to projects\n\nThis system uses sophisticated on-chain logic to manage vesting schedules, early claim penalties, and reward integrity while maintaining tight access controls to ensure proper distribution of project tokens to the Chainlink ecosystem participants."
+  },
+  {
+    "terms": [
+      "Staking"
+    ],
+    "definition": "# Staking\n\nIn the Chainlink Rewards (CLR) system, staking refers to the process where users are allocated reward tokens by participating projects, which they can claim according to predefined vesting schedules. Unlike traditional DeFi staking where users lock their own tokens to earn rewards, in this context users don't deposit or lock any assets. Instead, project administrators deposit tokens into the `BUILDClaim` contract, and authorized users claim their allocated portions based on vesting parameters and Merkle proofs.\n\nThe system features:\n- Linear vesting schedules with configurable unlock durations and delays\n- Early vesting options where users can forfeit a portion of unvested tokens\n- Loyalty bonuses for users who complete the full vesting period\n- Delegation capabilities allowing approved delegates to execute early vests on users' behalf\n\nThis implementation focuses on reward distribution management rather than traditional staking mechanisms, making it more akin to a vested grant or loyalty program than a conventional staking system."
+  },
+  {
+    "terms": [
+      "APR (Annual Percentage Rate)",
+      "APR",
+      "Annual Percentage Rate"
+    ],
+    "definition": "# APR (Annual Percentage Rate)\n\nIn the context of decentralized exchanges and liquidity pools, APR (Annual Percentage Rate) represents the annualized rate of return that liquidity providers can expect to earn from their capital contributions. It quantifies the yield on invested assets over a one-year period, expressed as a percentage.\n\nFor liquidity providers in protocols like Chainlink Rewards, APR is calculated by taking the fees or rewards earned over a specific timeframe, dividing by the capital contributed (Total Value Locked), and then annualizing this figure to create a standardized metric for comparison across different investment opportunities.\n\nWhile not directly encoded in smart contracts, APR serves as a critical off-chain metric that participants use to evaluate the economic benefits of providing liquidity. The actual returns may vary based on factors like vesting schedules, early withdrawal penalties, and changing market conditions."
+  },
+  {
+    "terms": [
+      "APY (Annual Percentage Yield)",
+      "APY",
+      "Annual Percentage Yield"
+    ],
+    "definition": "# APY (Annual Percentage Yield)\n\nAnnual Percentage Yield in DeFi refers to the effective annual rate of return accounting for compounding effects. However, in the Chainlink Rewards protocol, APY is not a direct concept. Instead, the system implements time-based token vesting with early claim options following a mathematical formula:\n\n```\nEVR(t) = minRatio + (maxRatio-minRatio) × (t/T)\n```\n\nWhere EVR is the Early Vest Ratio determining what portion of unvested tokens users can claim at time t, with minRatio and maxRatio representing configurable boundaries. Users receive tokens proportional to their allocation:\n\n```\nbonus_unvested_token_amount × EVR(t) × (user_allocated_amount/total_allocated_amount)\n```\n\nUnlike traditional APY systems with continuous compounding, Chainlink Rewards uses predetermined vesting schedules with linear unlocking periods and optional early vesting with partial forfeiture, focusing on token distribution rather than percentage-based returns."
+  },
+  {
+    "terms": [
+      "Gas Fee"
+    ],
+    "definition": "# Gas Fee\n\nGas fees are transaction costs paid by users to execute operations on the Ethereum blockchain when interacting with the Chainlink Rewards protocol. These fees are:\n\n- Paid in Ethereum's native currency (ETH, denominated in gwei)\n- Calculated as: Gas Used × Gas Price\n- Required for all on-chain transactions (claims, deployments, token transfers)\n- Variable based on network congestion and computational complexity\n\nIn the Chainlink Rewards codebase, gas optimization is prioritized through efficient coding patterns to minimize user costs. The protocol provides specific tools for measuring and comparing gas consumption (`pnpm gas`, `npm run test:gas`), reflecting the importance of gas efficiency for overall user experience and protocol adoption.\n\nGas fees are not protocol-specific charges but rather network-level costs paid directly to Ethereum validators who process and record transactions. Functions like `_claim()` in `BUILDClaim.sol` are designed with gas optimization in mind, using techniques such as caching array lengths outside loops and avoiding unnecessary state changes to reduce the computational resources required."
+  },
+  {
+    "terms": [
+      "Smart Contract"
+    ],
+    "definition": "# Smart Contract\n\nA smart contract, in the context of the Chainlink Rewards system, is a self-executing program deployed on the Ethereum blockchain that automatically enforces predefined rules for token distribution and management. The codebase features two primary smart contracts: BUILDClaim and BUILDFactory.\n\nBUILDClaim contracts handle the vesting and claiming mechanics, allowing eligible participants to receive project tokens according to configured schedules and rules. BUILDFactory manages the deployment of these claim contracts and enforces protocol-wide configurations.\n\nThese contracts implement trustless automation for:\n- Project onboarding and token deposits\n- User claim verification through Merkle proofs\n- Vesting schedule enforcement with early vesting options\n- Administrative controls for project management\n- Token withdrawals with proper authorization\n\nUnlike traditional agreements requiring intermediaries, these smart contracts execute automatically when conditions are met, ensuring transparent, tamper-resistant reward distribution for Chainlink ecosystem participants."
+  },
+  {
+    "terms": [
+      "DeFi"
+    ],
+    "definition": "# DeFi\n\nDecentralized Finance (DeFi) refers to a blockchain-based financial ecosystem that leverages smart contracts to recreate and enhance traditional financial services without centralized intermediaries. In the context of the Chainlink Rewards protocol, DeFi principles are embodied through:\n\n1. **Non-custodial control** - Users maintain direct control of their tokens during claiming processes\n2. **Smart contract automation** - Vesting schedules, rewards distribution, and claiming mechanisms operate through transparent, immutable code\n3. **Permissionless access** - Anyone with valid Merkle proofs can interact with the protocol\n4. **Composability** - Contracts interact with standard ERC-20 tokens and can potentially integrate with other blockchain protocols\n\nWhile the Chainlink Rewards contracts (`BUILDClaim` and `BUILDFactory`) aren't general-purpose DeFi protocols like lending platforms or DEXs, they function as a specialized DeFi application that distributes project tokens to Chainlink ecosystem participants according to predefined rules and vesting schedules—all enforced through on-chain mechanisms rather than centralized authorities."
+  },
+  {
+    "terms": [
+      "CeFi"
+    ],
+    "definition": "# CeFi\n\nCentralized Finance (CeFi) refers to financial services for cryptocurrency assets that operate through traditional centralized intermediaries rather than decentralized protocols. In the Chainlink Rewards codebase, CeFi elements are evident through the privileged administrator roles, centralized control mechanisms, and off-chain validation requirements. The system employs explicit access control (`DEFAULT_ADMIN_ROLE`, `PAUSER_ROLE`, project administrators) who can deploy contracts, configure seasons, manage withdrawals, and pause functionality. Critical operations like claim validation require server-side verification (\"Our server side validation is explicitly designed to gate access to the Merkle proofs\"). Unlike DeFi systems where all logic executes trustlessly on-chain, this protocol deliberately incorporates centralized trust assumptions and administrative safeguards, creating a hybrid model where users must trust both the smart contract code and the central authorities managing the rewards system."
+  },
+  {
+    "terms": [
+      "DAO"
+    ],
+    "definition": "# DAO\n\nA Decentralized Autonomous Organization (DAO) is a blockchain-based governance structure where decision-making authority is distributed among participants rather than centralized in traditional hierarchical management. DAOs operate through smart contracts that automatically execute predefined rules, enabling collective governance of resources and protocol changes.\n\nIn practice, DAOs typically feature:\n- Token-based voting mechanisms where holders propose and vote on decisions\n- On-chain execution of approved proposals\n- Transparent operations visible to all network participants\n- Role-based permissions to manage different levels of authority\n- Programmatic enforcement of organizational rules\n\nDAOs represent a fundamental shift from traditional organizations by using cryptographic verification and blockchain technology to create trustless coordination among potentially anonymous participants working toward shared objectives."
+  },
+  {
+    "terms": [
+      "Liquidity Mining"
+    ],
+    "definition": "# Liquidity Mining\n\nLiquidity mining is an incentive mechanism where participants (liquidity providers) are rewarded with tokens for contributing assets to a protocol. Unlike traditional liquidity mining in DeFi where users provide trading pairs to decentralized exchanges, the Chainlink Rewards system implements a specialized version focused on ecosystem engagement rather than market-making.\n\nIn the Chainlink Rewards context, projects in the BUILD program deposit tokens into a `BUILDClaim` contract that are then distributed to users based on predefined allocations and vesting schedules. Users don't provide liquidity pairs but instead earn rewards through ecosystem participation, validated via Merkle proofs. The system features linear vesting with customizable parameters, an \"early vest\" option with proportional rewards/penalties, and loyalty bonuses for long-term participants.\n\nThe distribution mechanism uses formulas like:\n```\nclaimable = baseTokens + (bonusTokens × timeElapsed/unlockDuration)\n```\n\nFor early vesting:\n```\nearlyVestBonus = unvestedBonus × (minRatio + (maxRatio-minRatio) × timeElapsed/unlockDuration)\n```\n\nThis approach shares the token distribution aspect of traditional liquidity mining but replaces the liquidity provision component with ecosystem engagement metrics determined off-chain."
+  },
+  {
+    "terms": [
+      "Protocol Fee"
+    ],
+    "definition": "# Protocol Fee\n\nA Protocol Fee, in the context of decentralized finance protocols, is a percentage of transaction value collected by the protocol itself. In the Chainlink Rewards system, while not explicitly implemented, such a fee would represent a portion of tokens retained from project deposits or withdrawals to fund protocol operations and development.\n\nThe system instead focuses on careful token accounting through mechanisms that track deposits, allocations, withdrawals, and refunds. The BUILDFactory contract maintains strict invariants ensuring that \"the total deposited and refunded amounts always equal or exceed the total allocated and withdrawn amounts\" and that \"the maximum available amount never exceeds the token balance of a project.\"\n\nThis accounting system, managed by trusted administrative roles, prioritizes secure fund management rather than extracting ongoing protocol revenue. Any implementation of a true protocol fee would require explicit code changes and governance approval."
+  },
+  {
+    "terms": [
+      "ERC20"
+    ],
+    "definition": "# ERC20\n\nERC20 (Ethereum Request for Comments 20) is a technical standard for fungible tokens on the Ethereum blockchain. It defines a common interface that tokens must implement to ensure interoperability across the Ethereum ecosystem. The standard specifies six core functions: `totalSupply()`, `balanceOf(address)`, `transfer(address, uint256)`, `transferFrom(address, address, uint256)`, `approve(address, uint256)`, and `allowance(address, address)`. \n\nIn the Chainlink Rewards codebase, ERC20 tokens serve as the reward currency that projects in the Chainlink BUILD program distribute to participants. The system requires \"canonical\" ERC20 tokens that implement the standard `decimals()` function and exhibit predictable transfer behavior. Non-standard implementations like fee-on-transfer or rebasing tokens are explicitly unsupported. The contracts use the OpenZeppelin `IERC20` interface and `SafeERC20` library to interact with these tokens safely, implementing operations like deposits, withdrawals, and claim disbursements through standard transfer functions while checking balances to ensure proper token accounting."
+  },
+  {
+    "terms": [
+      "ERC1155"
+    ],
+    "definition": "# ERC1155\n\nA token standard that allows for the creation and management of multiple token types within a single smart contract. It supports both fungible and non-fungible tokens, enables batch transfers, and provides more gas-efficient operations compared to separate ERC20 or ERC721 contracts. While ERC1155 is a powerful standard in the Ethereum ecosystem, it's worth noting that the Chainlink Rewards protocol explicitly states it does not use ERC1155 tokens - it only works with canonical ERC20 tokens for reward distribution."
+  },
+  {
+    "terms": [
+      "ERC6909"
+    ],
+    "definition": "# ERC6909\n\nERC6909 is a gas-efficient standard for managing multiple fungible tokens within a single contract. It provides a minimalist implementation for token operations, including transfers, approvals, and balance tracking. Key features include:\n- Support for multiple token IDs within one contract\n- Operator approval system for batch transfers\n- Gas-optimized storage and operations\n\nERC6909 allows for more flexible and cost-effective token interactions compared to separate ERC20 contracts, making it useful in various decentralized finance applications."
+  },
+  {
+    "terms": [
+      "X96"
+    ],
+    "definition": "# X96\n\nA fixed-point number representation format widely used in decentralized finance (DeFi) protocols, where a value is stored as an integer that has been multiplied by 2^96. This approach allows for high-precision arithmetic on blockchain platforms like Ethereum, where native floating-point operations aren't supported. The X96 format (also known as Q64.96 in some contexts) dedicates 96 bits to the fractional part of a number, enabling precise calculations for financial operations that require representing very small decimal values or handling wide ranges of numbers. The actual value can be recovered by dividing the stored integer by 2^96. This technique is essential for accurately representing and calculating token prices, exchange rates, and reward distributions without losing precision due to rounding errors."
+  },
+  {
+    "terms": [
+      "Concentrated Liquidity"
+    ],
+    "definition": "# Concentrated Liquidity\n\nConcentrated liquidity is not directly implemented in the Chainlink Rewards codebase. The term, as typically used in DeFi, refers to a liquidity provision mechanism where providers can allocate capital to specific price ranges rather than across the entire price spectrum. This concept, pioneered by Uniswap V3, allows for greater capital efficiency by focusing liquidity where it's most needed.\n\nWhile the Chainlink Rewards system deals with token distributions, vesting periods, and claim mechanisms, it does not implement an AMM or liquidity pools with concentrated ranges. The system instead focuses on reward allocation based on seasons, vesting schedules, and loyalty bonuses using mechanisms like merkle proofs for verification and early vesting calculations for users who want to claim tokens before the full vesting period ends."
+  },
+  {
+    "terms": [
+      "Constant Product Formula"
+    ],
+    "definition": "# Constant Product Formula\n\nThe Constant Product Formula is a mathematical invariant expressed as `x * y = k`, where `x` and `y` represent token reserves and `k` is a constant value that must be maintained. While fundamental to many automated market makers (AMMs) in DeFi, this formula is not directly implemented in the Chainlink Rewards codebase.\n\nInstead, the project uses different mathematical models:\n\n1. **Linear vesting calculations** - For early vesting, a ratio is calculated as:\n   ```\n   EVR(t) = minRatio + (maxRatio - minRatio) × (t/T)\n   ```\n\n2. **Proportional refund calculations** - For loyalty refunds:\n   ```\n   refundAmount = totalLoyalty × (refundEligible / totalLoyaltyEligible)\n   ```\n\n3. **Available funds calculations** - Using additive/subtractive formulas:\n   ```\n   maxAvailable = totalDeposited + totalRefunded - totalWithdrawn - totalAllocated\n   ```\n\nThese formulas maintain accounting integrity for token allocations, vesting schedules, and refund mechanisms, but do not implement the constant product invariant commonly used in DEX protocols."
+  },
+  {
+    "terms": [
+      "Invariant"
+    ],
+    "definition": "# Invariant\n\nIn the Chainlink Rewards protocol, an **invariant** is a critical system property or mathematical relationship that must remain true throughout the contract's lifecycle to ensure security and correct operation. These invariants serve as fundamental guarantees that the system will behave predictably under all valid conditions.\n\nThe protocol maintains several key invariants:\n\n- **Balance Invariants**: Total withdrawals never exceed deposits; claimable and refundable amounts never exceed actual token balances; maximum available amounts are always consistent with on-chain balances.\n\n- **Allocation Invariants**: Users cannot claim more than their allocated tokens; total refunded amounts never exceed total allocated amounts across all seasons.\n\n- **Access Control Invariants**: Only authorized roles can perform privileged operations; projects cannot unilaterally withdraw funds after depositing without admin permission.\n\n- **Operational Invariants**: Tokens vest according to the configured schedules; contracts cannot be permanently bricked except through controlled closure mechanisms.\n\nThese invariants are enforced through careful implementation of the contract logic and are central to the protocol's security model. They provide guarantees to users that their tokens will be distributed correctly, to project administrators that their deposited funds will be properly managed, and to system administrators that the protocol remains resilient against manipulation."
+  },
+  {
+    "terms": [
+      "Mid Price"
+    ],
+    "definition": "# Mid Price\n\nThe mid price represents the fair market value or theoretical exchange rate between two tokens in a liquidity pool, calculated from the pool's reserves. In decentralized finance systems, it serves as the price at which an infinitesimally small trade could occur without causing market impact or slippage. Unlike execution prices (which include slippage based on trade size), the mid price is a reference point that reflects current market conditions.\n\nMid price is typically calculated using a mathematical formula based on the ratio of reserves in a liquidity pool. For example, in a constant product pool (x*y=k), the mid price would be the ratio of one reserve to the other. This theoretical price serves as a baseline for price discovery, oracle integrations, and as a reference for traders to evaluate the fairness of quoted execution prices.\n\nWhile important in trading environments, in non-DEX contexts like the Chainlink Rewards system, mid price might only appear as a reference value (potentially from an oracle) to show users the approximate market value of their reward tokens."
+  },
+  {
+    "terms": [
+      "AMM Protocol",
+      "Automated Market Maker",
+      "AMM"
+    ],
+    "definition": "# AMM Protocol (Automated Market Maker)\n\nAn Automated Market Maker (AMM) protocol is a type of decentralized exchange mechanism that eliminates the need for traditional order books. Instead of matching buyers and sellers directly, AMMs use smart contracts to create liquidity pools where users trade against a pool of tokens rather than with counterparties.\n\nCore characteristics include:\n- **Mathematical price determination**: Uses formulas (like constant product x*y=k) to automatically set asset prices based on the ratio of tokens in the pool\n- **Liquidity pools**: Pairs of tokens supplied by liquidity providers who earn fees from trades\n- **Permissionless participation**: Anyone can provide liquidity or trade without intermediaries\n- **Slippage-based pricing**: Larger trades cause more significant price impact than smaller ones\n- **Composability**: Can be integrated with other DeFi protocols as building blocks\n\nPopular implementations include Uniswap (constant product), Curve (specialized for similar-value assets), and Balancer (supporting multiple assets in varying weights).\n\nAMMs solved the liquidity problem for decentralized exchanges by creating constant availability for trading and democratizing market making, which previously required sophisticated trading infrastructure and significant capital."
+  },
+  {
+    "terms": [
+      "address(0)"
+    ],
+    "definition": "# address(0)\n\nThe zero address, represented as `0x0000000000000000000000000000000000000000` in hexadecimal notation. In Ethereum and EVM-compatible blockchains, `address(0)` serves as a special sentinel value that is used to:\n\n1. Indicate an uninitialized or invalid address\n2. Detect missing or default address values (unassigned address variables default to zero)\n3. Act as a \"burn address\" since no one owns its private key, making tokens sent there permanently inaccessible\n4. Validate input parameters, with many functions reverting when zero address is provided\n5. Guard against critical operations with missing addresses\n\nIn the Chainlink Rewards codebase, `address(0)` checks prevent operations like setting zero-address administrators, sending withdrawals to null recipients, and registering invalid token addresses. For example:\n\n```solidity\n// From BUILDFactory.sol\nif (recipient == address(0)) {\n  revert InvalidWithdrawalRecipient(recipient);\n}\n```\n\nThis pattern is a standard safety mechanism across Ethereum smart contracts to prevent various types of errors and potential vulnerabilities."
+  },
+  {
+    "terms": [
+      "EIP-1153"
+    ],
+    "definition": "# EIP-1153\n\nEIP-1153 (Transient Storage Opcodes) is an Ethereum Improvement Proposal that introduces two new opcodes to the Ethereum Virtual Machine: `TLOAD` and `TSTORE`. These opcodes enable smart contracts to use a new type of storage called \"transient storage,\" which provides a temporary key-value store that exists only for the duration of a transaction. Unlike regular contract storage, transient storage is automatically cleared after each transaction completes, making it ideal for temporary data that doesn't need to persist between transactions.\n\nThe key benefits of EIP-1153 include:\n- **Gas efficiency**: Operations on transient storage cost significantly less gas than traditional storage operations\n- **Reentrancy protection**: Provides a more gas-efficient way to implement reentrancy guards\n- **Cross-contract-call state management**: Enables efficient data passing between internal calls within a transaction\n- **Reduced storage pollution**: Prevents accumulation of temporary state in permanent storage\n\nThis proposal was implemented in Ethereum's Cancun upgrade (March 2024) and is available in Solidity 0.8.24 and later. Developers can use transient storage to optimize gas costs for temporary data needs, particularly for operations that previously relied on memory or storage for intra-transaction state management."
+  },
+  {
+    "terms": [
+      "DEX"
+    ],
+    "definition": "# DEX\n\nA Decentralized Exchange (DEX) is a peer-to-peer marketplace for trading cryptocurrencies without intermediaries. It refers to protocols that enable trustless, permissionless token swaps and liquidity provision through smart contracts. Unlike centralized exchanges, DEXs allow users to maintain control of their assets, trade directly from their wallets, and interact with on-chain liquidity pools.\n\nKey features of DEXs often include:\n1. Automated market-making (AMM) using liquidity pools\n2. Direct token swaps without order books\n3. Ability for users to provide liquidity and earn fees\n4. Smart contract-based trades without custodial requirements\n\nDEXs represent a fundamental component of the decentralized finance (DeFi) ecosystem, offering alternatives to traditional centralized cryptocurrency exchanges."
+  },
+  {
+    "terms": [
+      "ERC721"
+    ],
+    "definition": "# ERC721\n\nERC721 is a token standard on Ethereum for non-fungible tokens (NFTs), where each token has unique properties and identifiers. In the Chainlink Rewards context, however, ERC721 tokens are explicitly not used in the protocol. As stated in the project documentation under \"Scoping Q&A\": \"ERC721 used by the protocol: None.\" \n\nThe BUILDClaim contract does implement the ERC165 interface standard (through `supportsInterface`), but only to expose compatibility with its own interfaces and IERC165, not to handle NFTs. The protocol exclusively works with ERC20 tokens for reward distribution and claims, focusing on fungible token management rather than unique digital assets."
+  },
+  {
+    "terms": [
+      "EIP-712"
+    ],
+    "definition": "# EIP-712\n\nEIP-712 (Ethereum Improvement Proposal 712) is a standard for structured data hashing and signing in Ethereum. It enables users to sign typed, structured data instead of just arbitrary byte strings, making it possible for wallets to display human-readable information about what is being signed.\n\nThe standard defines a method to create a domain-specific hash of typed structured data that can be signed, sent across a wire, and later recovered to verify the signer's intent. This is particularly valuable for off-chain operations where signed messages need to be verified on-chain, such as in decentralized exchanges, meta-transactions, or any application requiring secure user authorization.\n\nIn the Chainlink Rewards codebase, EIP-712 could be relevant for secure verification of off-chain signed messages related to reward claims or delegations. While the code uses Merkle proofs for claim validation (`_verifyMerkleProof` in BUILDClaim.sol), EIP-712 would provide a complementary way to ensure users clearly understand what they're signing when performing operations like early vesting or delegation.\n\nThe standard significantly improves user experience and security by:\n- Showing users exactly what they're signing in a structured format\n- Preventing cross-protocol replay attacks with domain separators\n- Making signatures verifiable on-chain with clear type information\n- Enabling more intuitive interfaces for signing operations"
+  },
+  {
+    "terms": [
+      "Time-Weighted Average Market Maker (TWAMM)",
+      "TWAMM"
+    ],
+    "definition": "# Time-Weighted Average Market Maker (TWAMM)\n\nA Time-Weighted Average Market Maker (TWAMM) is a specialized decentralized exchange mechanism that executes large orders by automatically splitting them into many smaller trades over an extended time period. Unlike traditional market makers that execute orders immediately, TWAMMs distribute execution across multiple blocks to calculate a time-weighted average price, which significantly reduces price impact, slippage, and market manipulation for large trades. This mechanism essentially creates a \"virtual order\" that is executed gradually in the background, allowing traders to deploy substantial capital more efficiently without disrupting market pricing. TWAMMs are particularly valuable in DeFi protocols with limited liquidity, as they help prevent front-running and minimize the price impact that would normally occur when large trades execute against shallow liquidity pools. The concept gained popularity with Uniswap v4's implementation but has been adapted across various DEX protocols."
+  },
+  {
+    "terms": [
+      "Variant Maps"
+    ],
+    "definition": "# Variant Maps\n\nA binary encoding pattern used to efficiently pack multiple boolean flags or configuration options into a single storage variable (typically a byte or uint256). In Solidity smart contracts, this technique significantly reduces gas costs by minimizing storage operations while maintaining type-safe access to individual properties. \n\nVariant maps work by assigning each boolean flag to a specific bit position and using bitwise operations to set, clear, and check these flags. For example, eight different boolean properties can be stored in a single byte instead of using eight separate storage slots.\n\nThis pattern is particularly valuable in protocols where gas efficiency is critical, such as decentralized exchanges or order management systems. By encoding multiple properties (like order direction, usage flags, or signature types) into a compact representation, contracts can process transactions with minimal storage overhead while maintaining clear separation of concerns through accessor functions."
+  },
+  {
+    "terms": [
+      "ECDSA"
+    ],
+    "definition": "# ECDSA\n\nECDSA (Elliptic Curve Digital Signature Algorithm) is a cryptographic algorithm used to create and verify digital signatures in blockchain systems. In this codebase, ECDSA is used through OpenZeppelin's implementation to verify the authenticity of messages and user actions.\n\nAt its core, ECDSA provides three critical capabilities:\n1. **Signature Creation**: Using a private key to sign a message\n2. **Signature Verification**: Confirming a signature's validity using the signer's public key\n3. **Address Recovery**: Determining which Ethereum address created a signature\n\nIn the Chainlink Rewards system, ECDSA is particularly important for verifying that only legitimate users can claim rewards. The system uses Merkle proofs (which internally rely on cryptographic hashing similar to ECDSA principles) to validate user eligibility:\n\n```solidity\nfunction _verifyMerkleProof(\n    bytes32 root,\n    address user,\n    bytes32[] memory proof,\n    uint256 maxTokenAmount,\n    bool isEarlyClaim,\n    uint256 salt\n  ) private pure returns (bool) {\n    bytes32 leaf =\n      keccak256(bytes.concat(keccak256(abi.encode(user, maxTokenAmount, isEarlyClaim, salt))));\n    return MerkleProof.verify(proof, root, leaf);\n  }\n```\n\nECDSA works alongside mechanisms like this to create a secure authentication system that protects sensitive operations like token claims and early vesting actions."
+  },
+  {
+    "terms": [
+      "ERC1271"
+    ],
+    "definition": "# ERC1271\n\nERC1271 is a standard interface for smart contracts to validate signatures. It enables contracts to implement custom signature verification logic, extending signature capabilities beyond Externally Owned Accounts (EOAs). The standard defines an `isValidSignature` function that takes a message hash and a signature, returning a specific magic value (`0x1626ba7e`) if the signature is valid. This allows for complex signature schemes like multi-sig wallets, smart contract wallets, and delegated signing. ERC1271 is crucial for account abstraction, decentralized exchanges with off-chain orders, and Sign-In With Ethereum (SIWE) implementations.\n\n```solidity\ninterface IERC1271 {\n    function isValidSignature(bytes32 hash, bytes memory signature) external view returns (bytes4 magicValue);\n}\n```\n\nIn the Chainlink Rewards system, this standard would enable compatibility with smart contract wallets, allowing them to participate in the delegation system and authorization processes alongside traditional EOA wallets."
+  },
+  {
+    "terms": [
+      "Application-Specific Sequencing (ASS)",
+      "Application-Specific Sequencing",
+      "(ASS)"
+    ],
+    "definition": "# Application-Specific Sequencing (ASS)\n\nApplication-Specific Sequencing (ASS) is a blockchain mechanism that allows individual applications to control the ordering of their own transactions rather than relying on the default sequencing determined by miners, validators, or block builders on the underlying blockchain. This approach gives applications sovereignty over their execution environment, enabling them to implement custom ordering rules that optimize for specific goals such as fairness, efficiency, or MEV protection.\n\nIn practice, ASS lets protocols like decentralized exchanges (DEXs) and DeFi applications define what constitutes a \"fair\" transaction ordering for their specific use case. For example, a DEX might implement strict time-based ordering to prevent front-running, while a lending protocol could prioritize liquidations based on risk metrics rather than gas price.\n\nBy decoupling application logic from network-level sequencing, ASS can help mitigate harmful MEV extraction, improve user experience, and allow applications to evolve independently of the base layer's sequencing rules. However, this approach may introduce tradeoffs in cross-application composability and require additional infrastructure to coordinate between application-specific sequencers and the underlying blockchain."
+  },
+  {
+    "terms": [
+      "MEV (Maximal Extractable Value)",
+      "MEV",
+      "Maximal Extractable Value"
+    ],
+    "definition": "# MEV (Maximal Extractable Value)\n\nMEV refers to the maximum profit that can be extracted from blockchain networks by reordering, inserting, or censoring transactions within blocks. Originally called \"Miner Extractable Value,\" it now applies to any block producer's ability to extract value beyond standard transaction fees.\n\nIn blockchain systems, MEV can manifest through:\n- **Transaction reordering** to gain arbitrage opportunities\n- **Front-running** legitimate user transactions\n- **Sandwich attacks** that manipulate asset prices before and after user trades\n- **Transaction censorship** for economic advantage\n\nMany DeFi protocols implement MEV mitigation strategies to protect users and liquidity providers. These include batch processing transactions at uniform prices, implementing fair ordering mechanisms, and internalizing arbitrage profits through systems like \"Top of Block (ToB) Auctions\" that redistribute value back to liquidity providers rather than allowing it to be extracted by external arbitrageurs.\n\nEffective MEV protection creates a more equitable trading environment, reduces slippage costs for users, and prevents value leakage from the underlying protocol, ultimately contributing to a healthier decentralized financial ecosystem."
+  },
+  {
+    "terms": [
+      "Orderbook"
+    ],
+    "definition": "# Orderbook\n\nAn **Orderbook** is a fundamental data structure in trading systems that maintains sorted lists of buy (bid) and sell (ask) orders for a specific asset or trading pair. In this codebase, an Orderbook is implemented as:\n\n```rust\npub struct OrderBook {\n    id:   PoolId,           // Unique identifier for the asset/pool\n    amm:  Option<MarketSnapshot>,  // Optional AMM state\n    bids: Vec<OrderWithStorageData<GroupedVanillaOrder>>,  // Buy orders\n    asks: Vec<OrderWithStorageData<GroupedVanillaOrder>>   // Sell orders\n}\n```\n\nThe Orderbook serves as the central mechanism for:\n- **Price discovery** - By showing the current market depth and available liquidity\n- **Order matching** - Enabling the matching engine to efficiently pair compatible buy and sell orders\n- **Market transparency** - Presenting a clear view of all active orders at different price levels\n\nOrders within each list (bids/asks) are kept sorted according to a `SortStrategy`, typically ordering bids by highest price first and asks by lowest price first, with secondary sorting by volume or timestamp. The Orderbook is typically constructed and modified using a `BookBuilder` pattern to maintain its integrity during updates.\n\nThe structure efficiently supports queries needed for trade execution, market data distribution, and liquidity analysis."
+  },
+  {
+    "terms": [
+      "Top-of-Block (ToB)",
+      "Top-of-Block",
+      "ToB"
+    ],
+    "definition": "# Top-of-Block (ToB)\n\nA specialized order type in blockchain trading systems designed to be executed at the earliest possible position within a new block. ToB orders receive priority execution over standard transactions, allowing traders to minimize slippage and capture time-sensitive opportunities. These orders typically specify asset quantities, gas limits, validity constraints tied to specific block numbers, and recipient information.\n\nWhile referenced in the broader context through files like `ToBOrderBuffer.sol`, Top-of-Block functionality is not directly implemented in the core Chainlink Rewards contracts (`BUILDClaim.sol` and `BUILDFactory.sol`). The concept represents an advanced transaction ordering mechanism that prioritizes specific trades to execute before other transactions in a block, giving them preferential treatment during block construction by miners or validators."
+  }
+]
